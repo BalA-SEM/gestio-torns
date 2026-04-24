@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#ffffff">
+<title>Gestió de Torns</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f3; --bg3: #efefec;
+    --text: #1a1a18; --text2: #666660; --text3: #999990;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --radius: 10px; --radius-lg: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+      --text: #f0f0ec; --text2: #9a9a90; --text3: #666660;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; color: var(--text); background: var(--bg3); min-height: 100vh; }
+  .app { max-width: 430px; margin: 0 auto; background: var(--bg3); min-height: 100vh; position: relative; }
+  .topbar { padding: 14px 16px; border-bottom: 0.5px solid var(--border); background: var(--bg); position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; }
+  .topbar h1 { font-size: 17px; font-weight: 600; }
+  .topbar p { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .sync-wrap { display: flex; align-items: center; gap: 6px; }
+  .sync-label { font-size: 11px; color: var(--text2); }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #1D9E75; flex-shrink: 0; }
+  .sync-dot.loading { background: #EF9F27; animation: pulse 1s infinite; }
+  .sync-dot.error { background: #E24B4A; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .tabs { display: flex; border-bottom: 0.5px solid var(--border); background: var(--bg); position: sticky; top: 61px; z-index: 9; }
+  .tab { flex: 1; padding: 11px 4px; text-align: center; font-size: 13px; color: var(--text2); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; user-select: none; }
+  .tab.active { color: var(--text); border-bottom-color: var(--text); font-weight: 600; }
+  .section { display: none; padding: 14px; }
+  .section.active { display: block; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px; margin-bottom: 12px; }
+  .card-title { font-size: 12px; color: var(--text2); margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  .shift-day { display: flex; align-items: flex-start; gap: 8px; padding: 9px 0; border-bottom: 0.5px solid var(--border); }
+  .shift-day:last-child { border-bottom: none; }
+  .day-badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; min-width: 74px; text-align: center; flex-shrink: 0; margin-top: 2px; }
+  .day-badge.work { background: #E1F5EE; color: #085041; }
+  .day-badge.today { background: #EEEDFE; color: #3C3489; }
+  .day-info { flex: 1; font-size: 13px; }
+  .day-sub { font-size: 11px; color: var(--text2); }
+  .pos-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 3px; }
+  .pos-pill { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
+  .pos-costa { background: #E6F1FB; color: #0C447C; }
+  .pos-ponent { background: #FAEEDA; color: #633806; }
+  .pos-centre { background: #EAF3DE; color: #27500A; }
+  input[type=text], input[type=date] {
+    width: 100%; padding: 9px 11px; border-radius: var(--radius); border: 0.5px solid var(--border2);
+    background: var(--bg); font-size: 14px; color: var(--text); outline: none;
+    -webkit-appearance: none; appearance: none;
+  }
+  input[type=text]:focus, input[type=date]:focus { border-color: var(--text2); }
+  label { font-size: 13px; color: var(--text2); display: block; margin-bottom: 5px; margin-top: 13px; }
+  label:first-of-type { margin-top: 0; }
+  .btn { display: block; width: 100%; padding: 10px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg); font-size: 14px; color: var(--text); cursor: pointer; margin-top: 10px; text-align: center; font-weight: 500; -webkit-appearance: none; }
+  .btn:active { opacity: 0.75; }
+  .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .alert { padding: 10px 12px; border-radius: var(--radius); font-size: 13px; margin-bottom: 12px; line-height: 1.5; }
+  .alert.info { background: #E6F1FB; color: #0C447C; border: 0.5px solid #B5D4F4; }
+  .alert.warn { background: #FAEEDA; color: #633806; border: 0.5px solid #FAC775; }
+  .alert.success { background: #EAF3DE; color: #27500A; border: 0.5px solid #C0DD97; }
+  .alert.danger { background: #FCEBEB; color: #791F1F; border: 0.5px solid #F7C1C1; }
+  .pos-block { margin-bottom: 14px; }
+  .pos-header { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .pos-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .pos-name { font-size: 14px; font-weight: 600; }
+  .worker-select { display: flex; gap: 6px; flex-wrap: wrap; }
+  .w-btn { font-size: 12px; padding: 6px 11px; border-radius: 20px; border: 0.5px solid var(--border2); cursor: pointer; background: var(--bg2); color: var(--text2); transition: all 0.1s; user-select: none; font-weight: 500; }
+  .w-btn:active { opacity: 0.7; }
+  .w-btn.sel-costa { background: #E6F1FB; color: #0C447C; border-color: #85B7EB; }
+  .w-btn.sel-ponent { background: #FAEEDA; color: #633806; border-color: #FAC775; }
+  .w-btn.sel-centre { background: #EAF3DE; color: #27500A; border-color: #C0DD97; }
+  .w-btn.sel-plan { background: #EEEDFE; color: #3C3489; border-color: #AFA9EC; }
+  .hist-entry { padding: 8px 0; border-bottom: 0.5px solid var(--border); display: flex; gap: 10px; align-items: center; }
+  .hist-entry:last-child { border-bottom: none; }
+  .hist-date { font-size: 11px; color: var(--text2); min-width: 76px; }
+  .seg-btns { display: flex; border: 0.5px solid var(--border2); border-radius: var(--radius); overflow: hidden; margin-bottom: 14px; }
+  .seg-btn { flex: 1; padding: 8px 4px; font-size: 13px; text-align: center; cursor: pointer; background: var(--bg); color: var(--text2); border: none; border-right: 0.5px solid var(--border); user-select: none; }
+  .seg-btn:last-child { border-right: none; }
+  .seg-btn.active { background: var(--text); color: var(--bg); font-weight: 600; }
+  .suggestion-box { background: #EEEDFE; border: 0.5px solid #AFA9EC; border-radius: var(--radius); padding: 11px 13px; margin-top: 10px; }
+  .suggestion-box .s-title { font-size: 12px; color: #3C3489; font-weight: 600; margin-bottom: 7px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .s-row { display: flex; justify-content: space-between; font-size: 13px; color: #26215C; padding: 3px 0; border-bottom: 0.5px solid rgba(83,74,183,0.15); }
+  .s-row:last-child { border-bottom: none; }
+  .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border2); border-top-color: var(--text); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 5px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #user-setup { padding: 16px; }
+  .user-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
+  .user-card h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+  .user-card p { font-size: 13px; color: var(--text2); margin-bottom: 16px; line-height: 1.5; }
+  .user-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .user-opt { padding: 12px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg2); text-align: center; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text); transition: all 0.1s; }
+  .user-opt.selected { background: #EEEDFE; color: #3C3489; border-color: #AFA9EC; }
+  .divider { display: flex; align-items: center; gap: 10px; margin: 14px 0; color: var(--text3); font-size: 12px; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 0.5px; background: var(--border); }
+  .cur-user { font-size: 11px; color: var(--text2); }
+  .cur-user strong { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div>
+      <h1>Gestió de torns</h1>
+      <p id="today-label">Carregant...</p>
+    </div>
+    <div class="sync-wrap">
+      <span class="sync-label" id="sync-label">–</span>
+      <div class="sync-dot loading" id="sync-dot"></div>
+    </div>
+  </div>
+
+  <div id="user-setup" style="display:none;">
+    <div class="user-card">
+      <h2>Qui ets tu?</h2>
+      <p>Selecciona el teu nom. Es recordarà en aquest dispositiu per identificar els registres.</p>
+      <div class="user-grid" id="user-btns"></div>
+      <div class="divider">o escriu el teu nom</div>
+      <input type="text" id="user-custom" placeholder="Nom personalitzat..." style="margin-bottom:12px;">
+      <button class="btn primary" onclick="setUser()">Continuar</button>
+    </div>
+  </div>
+
+  <div id="main-app" style="display:none;">
+    <div class="tabs">
+      <div class="tab active" onclick="showSection('planificacio')">Planificació</div>
+      <div class="tab" onclick="showSection('registre')">Registre</div>
+      <div class="tab" onclick="showSection('historic')">Històric</div>
+    </div>
+
+    <div id="sec-planificacio" class="section active">
+      <div class="card">
+        <div class="card-title">Pròxims torns</div>
+        <div id="plan-list"><div style="font-size:13px;color:var(--text2);padding:8px 0;"><span class="spinner"></span>Carregant...</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Rotació suggerida</div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:10px;">Marca qui treballa avui per calcular la rotació:</p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;" id="plan-workers"></div>
+        <div id="plan-suggestion" style="display:none;"></div>
+        <button class="btn" onclick="calcSuggestion()">Calcula rotació suggerida</button>
+      </div>
+    </div>
+
+    <div id="sec-registre" class="section">
+      <div id="reg-alert"></div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span class="card-title" style="margin-bottom:0;">Data del torn</span>
+          <span class="cur-user">com: <strong id="cur-user-label"></strong> · <span onclick="logout()" style="color:#378ADD;cursor:pointer;">canviar</span></span>
+        </div>
+        <input type="date" id="reg-date">
+      </div>
+      <div class="card">
+        <div class="card-title">Assigna posicions</div>
+        <div class="pos-block">
+          <div class="pos-header"><div class="pos-dot" style="background:#378ADD;"></div><span class="pos-name">Costa</span></div>
+          <div class="worker-select" id="ws-costa"></div>
+        </div>
+        <div class="pos-block">
+          <div class="pos-header"><div class="pos-dot" style="background:#BA7517;"></div><span class="pos-name">Ponent</span></div>
+          <div class="worker-select" id="ws-ponent"></div>
+        </div>
+        <div class="pos-block">
+          <div class="pos-header"><div class="pos-dot" style="background:#3B6D11;"></div><span class="pos-name">Centre</span></div>
+          <div class="worker-select" id="ws-centre"></div>
+        </div>
+        <label>Afegir company/a no llistat</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="extra-worker" placeholder="Nom..." style="flex:1;">
+          <button class="btn" style="width:auto;margin-top:0;padding:9px 14px;flex-shrink:0;" onclick="addExtraWorker()">Afegir</button>
+        </div>
+        <button class="btn primary" id="save-btn" onclick="saveRegistre()">Desar registre del torn</button>
+      </div>
+    </div>
+
+    <div id="sec-historic" class="section">
+      <div class="seg-btns">
+        <div class="seg-btn active" onclick="showHist('posicions')">Per posicions</div>
+        <div class="seg-btn" onclick="showHist('treballadors')">Per treballadors</div>
+      </div>
+      <div id="hist-posicions">
+        <div class="card"><div class="card-title">Costa</div><div id="hist-costa"></div></div>
+        <div class="card"><div class="card-title">Ponent</div><div id="hist-ponent"></div></div>
+        <div class="card"><div class="card-title">Centre</div><div id="hist-centre"></div></div>
+      </div>
+      <div id="hist-treballadors" style="display:none;">
+        <div class="card">
+          <div class="card-title">Selecciona treballador</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;" id="hist-worker-btns"></div>
+          <div id="hist-worker-detail" style="margin-top:12px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbwbDCRDXXbZwaF2-rsSHsCOppc8BI5noANQxCiR8afqhKL454oHmwBRVDsGCeudiZgO/exec';
+const WORKERS = ['BalA','Marta','Pep','Roger'];
+const CYCLE = [{week:'A',days:[4,6,0]},{week:'B',days:[4,5]},{week:'C',days:[1,4]}];
+const CYCLE_START = new Date(2026,3,30);
+const CYCLE_START_IDX = 1;
+const DAY_NAMES = ['Dg','Dl','Dt','Dc','Dj','Dv','Sa'];
+const MONTH_NAMES = ['gen','feb','mar','abr','mai','jun','jul','ago','set','oct','nov','des'];
+
+let records = [];
+let allWorkers = [...WORKERS];
+let currentUser = '';
+let wsAssignment = {Costa:null,Ponent:null,Centre:null};
+let planSelected = new Set();
+let histWorkerSelected = null;
+let histMode = 'posicions';
+
+function isoDate(d) {
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function fmtDate(d) { return `${DAY_NAMES[d.getDay()]} ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`; }
+
+function getCycleWeek(date) {
+  const d = new Date(date); d.setHours(0,0,0,0);
+  const ref = new Date(CYCLE_START); ref.setHours(0,0,0,0);
+  const wDiff = Math.floor((d - ref) / (7*24*3600*1000));
+  const idx = ((CYCLE_START_IDX + wDiff) % 3 + 3) % 3;
+  return CYCLE[idx];
+}
+function isWorkDay(date) { return getCycleWeek(date).days.includes(date.getDay()); }
+
+function setSyncStatus(status) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot' + (status==='loading'?' loading':status==='error'?' error':'');
+  lbl.textContent = status==='loading'?'sincronitzant':status==='error'?'error':'ok';
+}
+
+async function apiCall(params) {
+  setSyncStatus('loading');
+  try {
+    const url = API + '?' + new URLSearchParams(params);
+    const res = await fetch(url);
+    const data = await res.json();
+    setSyncStatus('ok');
+    return data;
+  } catch(e) {
+    setSyncStatus('error');
+    return {error: e.message};
+  }
+}
+
+async function loadRecords() {
+  const data = await apiCall({action:'getRecords'});
+  if (data.ok) records = data.records.sort((a,b) => b.date.localeCompare(a.date));
+}
+
+async function loadWorkers() {
+  const data = await apiCall({action:'getWorkers'});
+  if (data.ok && data.workers.length) {
+    const extras = data.workers.filter(w=>!WORKERS.includes(w.name)).map(w=>w.name);
+    allWorkers = [...WORKERS, ...extras];
+  }
+}
+
+// USER SETUP
+function initUserSetup() {
+  const saved = localStorage.getItem('torns_user');
+  if (saved) { currentUser = saved; showMainApp(); return; }
+  document.getElementById('user-setup').style.display = 'block';
+  const btns = document.getElementById('user-btns');
+  btns.innerHTML = WORKERS.map(w=>`<div class="user-opt" onclick="pickUser('${w}',this)">${w}</div>`).join('');
+}
+
+let pickedUser = '';
+function pickUser(name, el) {
+  document.querySelectorAll('.user-opt').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+  pickedUser = name;
+  document.getElementById('user-custom').value = '';
+}
+
+function setUser() {
+  const custom = document.getElementById('user-custom').value.trim();
+  currentUser = custom || pickedUser;
+  if (!currentUser) { alert('Selecciona o escriu el teu nom'); return; }
+  localStorage.setItem('torns_user', currentUser);
+  document.getElementById('user-setup').style.display = 'none';
+  showMainApp();
+}
+
+function logout() {
+  localStorage.removeItem('torns_user');
+  currentUser = ''; pickedUser = '';
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('user-setup').style.display = 'block';
+  document.querySelectorAll('.user-opt').forEach(b=>b.classList.remove('selected'));
+}
+
+async function showMainApp() {
+  document.getElementById('main-app').style.display = 'block';
+  document.getElementById('cur-user-label').textContent = currentUser;
+  const today = new Date(); today.setHours(0,0,0,0);
+  document.getElementById('today-label').textContent = `Avui: ${fmtDate(today)} · ${isWorkDay(today)?'Dia de torn':'No és torn'}`;
+  await Promise.all([loadRecords(), loadWorkers()]);
+  renderPlan();
+  renderRegistre();
+}
+
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  ['planificacio','registre','historic'].forEach((s,i)=>{
+    if(s===id) document.querySelectorAll('.tab')[i].classList.add('active');
+  });
+  if(id==='historic') loadRecords().then(renderHistoric);
+  if(id==='planificacio') loadRecords().then(renderPlan);
+  if(id==='registre') renderRegistre();
+}
+
+// PLANIFICACIÓ
+function renderPlan() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  let html=''; let count=0; let d=new Date(today);
+  while(count<14) {
+    if(isWorkDay(d)) {
+      const iso = isoDate(d);
+      const isToday = iso===isoDate(today);
+      const rec = records.find(r=>r.date===iso);
+      html += `<div class="shift-day">
+        <span class="day-badge ${isToday?'today':'work'}">${fmtDate(d)}</span>
+        <div class="day-info">`;
+      if(rec && (rec.costa||rec.ponent||rec.centre)) {
+        html += `<div class="pos-row">
+          ${rec.costa?`<span class="pos-pill pos-costa">${rec.costa} · Costa</span>`:''}
+          ${rec.ponent?`<span class="pos-pill pos-ponent">${rec.ponent} · Ponent</span>`:''}
+          ${rec.centre?`<span class="pos-pill pos-centre">${rec.centre} · Centre</span>`:''}
+        </div>`;
+        if(rec.updated_by) html+=`<div class="day-sub" style="margin-top:2px;">Registrat per ${rec.updated_by}</div>`;
+      } else {
+        html += `<span class="day-sub">Pendent de registre</span>`;
+      }
+      html += `</div></div>`;
+      count++;
+    }
+    d.setDate(d.getDate()+1);
+  }
+  document.getElementById('plan-list').innerHTML = html;
+  document.getElementById('plan-workers').innerHTML = WORKERS.map(w=>
+    `<span class="w-btn ${planSelected.has(w)?'sel-plan':''}" onclick="togglePlanWorker('${w}',this)">${w}</span>`
+  ).join('');
+}
+
+function togglePlanWorker(name, el) {
+  if(planSelected.has(name)){planSelected.delete(name);el.className='w-btn';}
+  else{planSelected.add(name);el.className='w-btn sel-plan';}
+}
+
+function calcSuggestion() {
+  if(planSelected.size===0){alert('Selecciona almenys un treballador');return;}
+  const workers=[...planSelected];
+  function lastTime(worker,pos){
+    for(const r of records){
+      if((pos==='Costa'&&r.costa===worker)||(pos==='Ponent'&&r.ponent===worker)||(pos==='Centre'&&r.centre===worker)) return r.date;
+    }
+    return '2000-01-01';
+  }
+  const assignment={};
+  const used=new Set();
+  for(const pos of ['Costa','Ponent','Centre']){
+    const avail=workers.filter(w=>!used.has(w));
+    if(!avail.length) break;
+    avail.sort((a,b)=>lastTime(a,pos).localeCompare(lastTime(b,pos)));
+    assignment[pos]=avail[0];
+    used.add(avail[0]);
+  }
+  const box=document.getElementById('plan-suggestion');
+  box.style.display='block';
+  box.innerHTML=`<div class="suggestion-box">
+    <div class="s-title">Rotació suggerida</div>
+    ${Object.entries(assignment).map(([pos,w])=>`<div class="s-row"><span>${pos}</span><span>${w}</span></div>`).join('')}
+    ${workers.filter(w=>!Object.values(assignment).includes(w)).map(w=>`<div class="s-row"><span style="color:var(--text2);">${w}</span><span style="color:var(--text2);">No assignat</span></div>`).join('')}
+  </div>`;
+}
+
+// REGISTRE
+function renderRegistre() {
+  const today = isoDate(new Date());
+  document.getElementById('reg-date').value = today;
+  wsAssignment={Costa:null,Ponent:null,Centre:null};
+  renderWorkerSelects();
+  checkExistingRecord(today);
+  document.getElementById('reg-date').onchange = e=>checkExistingRecord(e.target.value);
+}
+
+function renderWorkerSelects() {
+  ['costa','ponent','centre'].forEach(pos=>{
+    const POS=pos.charAt(0).toUpperCase()+pos.slice(1);
+    document.getElementById('ws-'+pos).innerHTML=allWorkers.map(w=>{
+      let cls='w-btn'+(wsAssignment[POS]===w?' sel-'+pos:'');
+      return `<span class="${cls}" onclick="selectWorker('${POS}','${w}')">${w}</span>`;
+    }).join('');
+  });
+}
+
+function selectWorker(pos,name) {
+  if(wsAssignment[pos]===name){wsAssignment[pos]=null;}
+  else{
+    for(const p of ['Costa','Ponent','Centre']){if(wsAssignment[p]===name)wsAssignment[p]=null;}
+    wsAssignment[pos]=name;
+  }
+  renderWorkerSelects();
+}
+
+function checkExistingRecord(dateStr) {
+  const rec=records.find(r=>r.date===dateStr);
+  const alertEl=document.getElementById('reg-alert');
+  if(rec&&(rec.costa||rec.ponent||rec.centre)){
+    alertEl.innerHTML=`<div class="alert warn">
+      <strong>Ja hi ha registre per aquest dia</strong> (per ${rec.updated_by||'un company'})<br>
+      Costa: ${rec.costa||'—'} &nbsp;·&nbsp; Ponent: ${rec.ponent||'—'} &nbsp;·&nbsp; Centre: ${rec.centre||'—'}<br>
+      <span style="font-size:11px;">Si és incorrecte, reassigna i desa de nou.</span>
+    </div>`;
+    wsAssignment={Costa:rec.costa||null,Ponent:rec.ponent||null,Centre:rec.centre||null};
+    renderWorkerSelects();
+  } else {
+    alertEl.innerHTML='';
+    wsAssignment={Costa:null,Ponent:null,Centre:null};
+    renderWorkerSelects();
+  }
+}
+
+async function addExtraWorker() {
+  const val=document.getElementById('extra-worker').value.trim();
+  if(!val)return;
+  if(!allWorkers.includes(val)){
+    allWorkers.push(val);
+    await apiCall({action:'addWorker',name:val});
+  }
+  document.getElementById('extra-worker').value='';
+  renderWorkerSelects();
+}
+
+async function saveRegistre() {
+  const date=document.getElementById('reg-date').value;
+  if(!date){alert('Selecciona una data');return;}
+  const btn=document.getElementById('save-btn');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner"></span>Desant...';
+  await loadRecords();
+  const existing=records.find(r=>r.date===date);
+  if(existing&&(existing.costa||existing.ponent||existing.centre)){
+    const same=existing.costa===wsAssignment.Costa&&existing.ponent===wsAssignment.Ponent&&existing.centre===wsAssignment.Centre;
+    if(same){
+      document.getElementById('reg-alert').innerHTML=`<div class="alert info">Les dades coincideixen amb el registre existent. No cal tornar a desar.</div>`;
+      btn.disabled=false;btn.innerHTML='Desar registre del torn';
+      return;
+    }
+  }
+  const result=await apiCall({action:'saveRecord',date,costa:wsAssignment.Costa||'',ponent:wsAssignment.Ponent||'',centre:wsAssignment.Centre||'',user:currentUser});
+  if(result.ok){
+    await loadRecords();
+    const msg=result.overwritten
+      ?`Registre actualitzat correctament.`
+      :'Registre desat correctament.';
+    document.getElementById('reg-alert').innerHTML=`<div class="alert success">${msg}</div>`;
+    renderPlan();
+  } else {
+    document.getElementById('reg-alert').innerHTML=`<div class="alert danger">Error en desar. Comprova la connexió i torna-ho a provar.</div>`;
+  }
+  btn.disabled=false;btn.innerHTML='Desar registre del torn';
+}
+
+// HISTÒRIC
+function showHist(mode) {
+  histMode=mode;
+  document.querySelectorAll('.seg-btn').forEach((b,i)=>b.classList.toggle('active',(i===0&&mode==='posicions')||(i===1&&mode==='treballadors')));
+  document.getElementById('hist-posicions').style.display=mode==='posicions'?'':'none';
+  document.getElementById('hist-treballadors').style.display=mode==='treballadors'?'':'none';
+  renderHistoric();
+}
+
+function renderHistoric() {
+  if(histMode==='posicions'){
+    ['costa','ponent','centre'].forEach(pos=>{
+      const el=document.getElementById('hist-'+pos);
+      const entries=records.filter(r=>r[pos]).slice(0,20);
+      if(!entries.length){el.innerHTML='<p style="font-size:13px;color:var(--text2);">Sense registres encara</p>';return;}
+      el.innerHTML=entries.map(r=>`<div class="hist-entry">
+        <span class="hist-date">${r.date}</span>
+        <span class="pos-pill pos-${pos}" style="flex:1;">${r[pos]}</span>
+        ${r.updated_by?`<span style="font-size:11px;color:var(--text2);">${r.updated_by}</span>`:''}
+      </div>`).join('');
+    });
+  } else {
+    document.getElementById('hist-worker-btns').innerHTML=WORKERS.map(w=>
+      `<span class="w-btn ${histWorkerSelected===w?'sel-plan':''}" onclick="selectHistWorker('${w}')">${w}</span>`
+    ).join('');
+    renderHistWorker();
+  }
+}
+
+function selectHistWorker(name){
+  histWorkerSelected=name;
+  renderHistoric();
+}
+
+function renderHistWorker(){
+  const el=document.getElementById('hist-worker-detail');
+  if(!histWorkerSelected){el.innerHTML='';return;}
+  const entries=records.filter(r=>r.costa===histWorkerSelected||r.ponent===histWorkerSelected||r.centre===histWorkerSelected);
+  if(!entries.length){el.innerHTML='<p style="font-size:13px;color:var(--text2);">Sense registres per a aquest treballador</p>';return;}
+  el.innerHTML=entries.map(r=>{
+    const pos=r.costa===histWorkerSelected?'costa':r.ponent===histWorkerSelected?'ponent':'centre';
+    const posName=pos.charAt(0).toUpperCase()+pos.slice(1);
+    return `<div class="hist-entry"><span class="hist-date">${r.date}</span><span class="pos-pill pos-${pos}">${posName}</span></div>`;
+  }).join('');
+}
+
+// INIT
+initUserSetup();
+</script>
+</body>
+</html>
