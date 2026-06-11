@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#ffffff">
 <title>Gestió de Torns</title>
+<link rel="apple-touch-icon" href="icono-torns.svg">
+<link rel="icon" type="image/svg+xml" href="icono-torns.svg">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -48,6 +50,7 @@
   .pos-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 3px; }
   .pos-pill { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
   .pos-costa { background: #E6F1FB; color: #0C447C; }
+  .pos-costa31 { background: #C8E3F7; color: #083666; }
   .pos-ponent { background: #FAEEDA; color: #633806; }
   .pos-centre { background: #EAF3DE; color: #27500A; }
   input[type=text], input[type=date] {
@@ -75,6 +78,7 @@
   .w-btn { font-size: 12px; padding: 6px 11px; border-radius: 20px; border: 0.5px solid var(--border2); cursor: pointer; background: var(--bg2); color: var(--text2); transition: all 0.1s; user-select: none; font-weight: 500; }
   .w-btn:active { opacity: 0.7; }
   .w-btn.sel-costa { background: #E6F1FB; color: #0C447C; border-color: #85B7EB; }
+  .w-btn.sel-costa31 { background: #C8E3F7; color: #083666; border-color: #5A9ED4; }
   .w-btn.sel-ponent { background: #FAEEDA; color: #633806; border-color: #FAC775; }
   .w-btn.sel-centre { background: #EAF3DE; color: #27500A; border-color: #C0DD97; }
   .w-btn.sel-plan { background: #EEEDFE; color: #3C3489; border-color: #AFA9EC; }
@@ -161,8 +165,12 @@
       <div class="card">
         <div class="card-title">Assigna posicions</div>
         <div class="pos-block">
-          <div class="pos-header"><div class="pos-dot" style="background:#378ADD;"></div><span class="pos-name">Costa</span></div>
+          <div class="pos-header"><div class="pos-dot" style="background:#378ADD;"></div><span class="pos-name">Costa 30</span></div>
           <div class="worker-select" id="ws-costa"></div>
+        </div>
+        <div class="pos-block">
+          <div class="pos-header"><div class="pos-dot" style="background:#1A5FA0;"></div><span class="pos-name">Costa 31</span></div>
+          <div class="worker-select" id="ws-costa31"></div>
         </div>
         <div class="pos-block">
           <div class="pos-header"><div class="pos-dot" style="background:#BA7517;"></div><span class="pos-name">Ponent</span></div>
@@ -187,7 +195,8 @@
         <div class="seg-btn" onclick="showHist('treballadors')">Per treballadors</div>
       </div>
       <div id="hist-posicions">
-        <div class="card"><div class="card-title">Costa</div><div id="hist-costa"></div></div>
+        <div class="card"><div class="card-title">Costa 30</div><div id="hist-costa"></div></div>
+        <div class="card"><div class="card-title">Costa 31</div><div id="hist-costa31"></div></div>
         <div class="card"><div class="card-title">Ponent</div><div id="hist-ponent"></div></div>
         <div class="card"><div class="card-title">Centre</div><div id="hist-centre"></div></div>
       </div>
@@ -208,13 +217,13 @@ const WORKERS = ['BalA','Marta','Pep','Roger'];
 const CYCLE = [{week:'A',days:[4,6,0]},{week:'B',days:[4,5]},{week:'C',days:[1,4]}];
 const CYCLE_START = new Date(2026,3,30);
 const CYCLE_START_IDX = 1;
-const DAY_NAMES = ['Dg','Dl','Dt','Dc','Dj','Dv','Sa'];
-const MONTH_NAMES = ['gen','feb','mar','abr','mai','jun','jul','ago','set','oct','nov','des'];
+const DAY_NAMES = ['Diu','Dll','Dm','Dx','Dj','Dv','Ds'];
+const MONTH_NAMES = [];
 
 let records = [];
 let allWorkers = [...WORKERS];
 let currentUser = '';
-let wsAssignment = {Costa:null,Ponent:null,Centre:null};
+let wsAssignment = {Costa:null, Costa31:null, Ponent:null, Centre:null};
 let planSelected = new Set();
 let histWorkerSelected = null;
 let histMode = 'posicions';
@@ -223,7 +232,12 @@ function isoDate(d) {
   const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
   return `${y}-${m}-${day}`;
 }
-function fmtDate(d) { return `${DAY_NAMES[d.getDay()]} ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`; }
+function fmtDate(d) {
+  const day = String(d.getDate()).padStart(2,'0');
+  const mon = String(d.getMonth()+1).padStart(2,'0');
+  const yr = d.getFullYear();
+  return `${DAY_NAMES[d.getDay()]} ${day}-${mon}-${yr}`;
+}
 
 function getCycleWeek(date) {
   const d = new Date(date); d.setHours(0,0,0,0);
@@ -336,9 +350,10 @@ function renderPlan() {
       html += `<div class="shift-day">
         <span class="day-badge ${isToday?'today':'work'}">${fmtDate(d)}</span>
         <div class="day-info">`;
-      if(rec && (rec.costa||rec.ponent||rec.centre)) {
+      if(rec && (rec.costa||rec.costa31||rec.ponent||rec.centre)) {
         html += `<div class="pos-row">
-          ${rec.costa?`<span class="pos-pill pos-costa">${rec.costa} · Costa</span>`:''}
+          ${rec.costa?`<span class="pos-pill pos-costa">${rec.costa} · C30</span>`:''}
+          ${rec.costa31?`<span class="pos-pill pos-costa31">${rec.costa31} · C31</span>`:''}
           ${rec.ponent?`<span class="pos-pill pos-ponent">${rec.ponent} · Ponent</span>`:''}
           ${rec.centre?`<span class="pos-pill pos-centre">${rec.centre} · Centre</span>`:''}
         </div>`;
@@ -365,46 +380,110 @@ function togglePlanWorker(name, el) {
 function calcSuggestion() {
   if(planSelected.size===0){alert('Selecciona almenys un treballador');return;}
   const workers=[...planSelected];
-  function lastTime(worker,pos){
-    for(const r of records){
-      if((pos==='Costa'&&r.costa===worker)||(pos==='Ponent'&&r.ponent===worker)||(pos==='Centre'&&r.centre===worker)) return r.date;
+  const numW = workers.length;
+
+  // Positions based on available workers
+  // 4: C30, C31, Ponent, Centre
+  // 3: C30+31, Ponent, Centre
+  // 2: C30+31, Centre+Ponent
+  // 1: C30+31 (covers all)
+  let slots = [];
+  if(numW >= 4) {
+    slots = ['Costa 30','Costa 31','Ponent','Centre'];
+  } else if(numW === 3) {
+    slots = ['Costa 30+31','Ponent','Centre'];
+  } else if(numW === 2) {
+    slots = ['Costa 30+31','Centre+Ponent'];
+  } else {
+    slots = ['Costa 30+31'];
+  }
+
+  // For each worker, find last time they did each slot (considering combined slots)
+  function lastTimeSlot(worker, slot) {
+    for(const r of records) {
+      if(slot==='Costa 30' && r.costa===worker) return r.date;
+      if(slot==='Costa 31' && r.costa31===worker) return r.date;
+      if(slot==='Ponent' && r.ponent===worker) return r.date;
+      if(slot==='Centre' && r.centre===worker) return r.date;
+      if(slot==='Costa 30+31' && (r.costa===worker||r.costa31===worker)) return r.date;
+      if(slot==='Centre+Ponent' && (r.centre===worker||r.ponent===worker)) return r.date;
     }
     return '2000-01-01';
   }
+
+  // Assign: for each slot pick the worker who least recently did it
   const assignment={};
   const used=new Set();
-  for(const pos of ['Costa','Ponent','Centre']){
+  // Rotation order: Costa 30 > Costa 31 > Ponent > Centre
+  for(const slot of slots){
     const avail=workers.filter(w=>!used.has(w));
     if(!avail.length) break;
-    avail.sort((a,b)=>lastTime(a,pos).localeCompare(lastTime(b,pos)));
-    assignment[pos]=avail[0];
+    avail.sort((a,b)=>lastTimeSlot(a,slot).localeCompare(lastTimeSlot(b,slot)));
+    assignment[slot]=avail[0];
     used.add(avail[0]);
   }
+
+  // Build last 5 days history per worker
+  function workerHistory(worker) {
+    const entries = records.filter(r =>
+      r.costa===worker||r.costa31===worker||r.ponent===worker||r.centre===worker
+    ).slice(0,5);
+    if(!entries.length) return '<span style="color:var(--text2);font-size:11px;">Sense historial</span>';
+    return entries.map(r=>{
+      let pos='', cls='';
+      if(r.costa===worker&&r.costa31===worker){pos='C30+31';cls='pos-costa';}
+      else if(r.costa===worker){pos='C30';cls='pos-costa';}
+      else if(r.costa31===worker){pos='C31';cls='pos-costa31';}
+      else if(r.ponent===worker&&r.centre===worker){pos='C+P';cls='pos-ponent';}
+      else if(r.ponent===worker){pos='Ponent';cls='pos-ponent';}
+      else{pos='Centre';cls='pos-centre';}
+      return `<span style="font-size:11px;color:var(--text2);margin-right:6px;">${r.date.slice(5)}</span><span class="pos-pill ${cls}" style="font-size:11px;">${pos}</span>`;
+    }).join('<br style="margin:2px 0;">');
+  }
+
   const box=document.getElementById('plan-suggestion');
   box.style.display='block';
   box.innerHTML=`<div class="suggestion-box">
     <div class="s-title">Rotació suggerida</div>
-    ${Object.entries(assignment).map(([pos,w])=>`<div class="s-row"><span>${pos}</span><span>${w}</span></div>`).join('')}
+    ${slots.map(slot=>{
+      const w=assignment[slot]||'—';
+      return `<div class="s-row"><span>${slot}</span><span><strong>${w}</strong></span></div>`;
+    }).join('')}
     ${workers.filter(w=>!Object.values(assignment).includes(w)).map(w=>`<div class="s-row"><span style="color:var(--text2);">${w}</span><span style="color:var(--text2);">No assignat</span></div>`).join('')}
+    <div style="margin-top:10px;border-top:0.5px solid rgba(83,74,183,0.2);padding-top:8px;">
+      <div style="font-size:11px;color:#3C3489;font-weight:600;text-transform:uppercase;letter-spacing:0.03em;margin-bottom:6px;">Últims torns per treballador</div>
+      ${workers.map(w=>`
+        <div style="margin-bottom:8px;">
+          <div style="font-size:12px;font-weight:600;color:#26215C;margin-bottom:3px;">${w}</div>
+          <div style="line-height:1.9;">${workerHistory(w)}</div>
+        </div>
+      `).join('')}
+    </div>
   </div>`;
+}
 }
 
 // REGISTRE
 function renderRegistre() {
   const today = isoDate(new Date());
   document.getElementById('reg-date').value = today;
-  wsAssignment={Costa:null,Ponent:null,Centre:null};
+  wsAssignment={Costa:null,Costa31:null,Ponent:null,Centre:null};
   renderWorkerSelects();
   checkExistingRecord(today);
   document.getElementById('reg-date').onchange = e=>checkExistingRecord(e.target.value);
 }
 
 function renderWorkerSelects() {
-  ['costa','ponent','centre'].forEach(pos=>{
-    const POS=pos.charAt(0).toUpperCase()+pos.slice(1);
-    document.getElementById('ws-'+pos).innerHTML=allWorkers.map(w=>{
-      let cls='w-btn'+(wsAssignment[POS]===w?' sel-'+pos:'');
-      return `<span class="${cls}" onclick="selectWorker('${POS}','${w}')">${w}</span>`;
+  const posMap = [
+    {key:'Costa',   cssKey:'costa',   id:'ws-costa'},
+    {key:'Costa31', cssKey:'costa31', id:'ws-costa31'},
+    {key:'Ponent',  cssKey:'ponent',  id:'ws-ponent'},
+    {key:'Centre',  cssKey:'centre',  id:'ws-centre'},
+  ];
+  posMap.forEach(({key,cssKey,id})=>{
+    document.getElementById(id).innerHTML=allWorkers.map(w=>{
+      let cls='w-btn'+(wsAssignment[key]===w?' sel-'+cssKey:'');
+      return `<span class="${cls}" onclick="selectWorker('${key}','${w}')">${w}</span>`;
     }).join('');
   });
 }
@@ -412,7 +491,7 @@ function renderWorkerSelects() {
 function selectWorker(pos,name) {
   if(wsAssignment[pos]===name){wsAssignment[pos]=null;}
   else{
-    for(const p of ['Costa','Ponent','Centre']){if(wsAssignment[p]===name)wsAssignment[p]=null;}
+    for(const p of ['Costa','Costa31','Ponent','Centre']){if(wsAssignment[p]===name)wsAssignment[p]=null;}
     wsAssignment[pos]=name;
   }
   renderWorkerSelects();
@@ -421,17 +500,17 @@ function selectWorker(pos,name) {
 function checkExistingRecord(dateStr) {
   const rec=records.find(r=>r.date===dateStr);
   const alertEl=document.getElementById('reg-alert');
-  if(rec&&(rec.costa||rec.ponent||rec.centre)){
+  if(rec&&(rec.costa||rec.costa31||rec.ponent||rec.centre)){
     alertEl.innerHTML=`<div class="alert warn">
       <strong>Ja hi ha registre per aquest dia</strong> (per ${rec.updated_by||'un company'})<br>
-      Costa: ${rec.costa||'—'} &nbsp;·&nbsp; Ponent: ${rec.ponent||'—'} &nbsp;·&nbsp; Centre: ${rec.centre||'—'}<br>
+      Costa 30: ${rec.costa||'—'} &nbsp;·&nbsp; Costa 31: ${rec.costa31||'—'} &nbsp;·&nbsp; Ponent: ${rec.ponent||'—'} &nbsp;·&nbsp; Centre: ${rec.centre||'—'}<br>
       <span style="font-size:11px;">Si és incorrecte, reassigna i desa de nou.</span>
     </div>`;
-    wsAssignment={Costa:rec.costa||null,Ponent:rec.ponent||null,Centre:rec.centre||null};
+    wsAssignment={Costa:rec.costa||null,Costa31:rec.costa31||null,Ponent:rec.ponent||null,Centre:rec.centre||null};
     renderWorkerSelects();
   } else {
     alertEl.innerHTML='';
-    wsAssignment={Costa:null,Ponent:null,Centre:null};
+    wsAssignment={Costa:null,Costa31:null,Ponent:null,Centre:null};
     renderWorkerSelects();
   }
 }
@@ -456,14 +535,14 @@ async function saveRegistre() {
   await loadRecords();
   const existing=records.find(r=>r.date===date);
   if(existing&&(existing.costa||existing.ponent||existing.centre)){
-    const same=existing.costa===wsAssignment.Costa&&existing.ponent===wsAssignment.Ponent&&existing.centre===wsAssignment.Centre;
+    const same=existing.costa===wsAssignment.Costa&&existing.costa31===wsAssignment.Costa31&&existing.ponent===wsAssignment.Ponent&&existing.centre===wsAssignment.Centre;
     if(same){
       document.getElementById('reg-alert').innerHTML=`<div class="alert info">Les dades coincideixen amb el registre existent. No cal tornar a desar.</div>`;
       btn.disabled=false;btn.innerHTML='Desar registre del torn';
       return;
     }
   }
-  const result=await apiCall({action:'saveRecord',date,costa:wsAssignment.Costa||'',ponent:wsAssignment.Ponent||'',centre:wsAssignment.Centre||'',user:currentUser});
+  const result=await apiCall({action:'saveRecord',date,costa:wsAssignment.Costa||'',costa31:wsAssignment.Costa31||'',ponent:wsAssignment.Ponent||'',centre:wsAssignment.Centre||'',user:currentUser});
   if(result.ok){
     await loadRecords();
     const msg=result.overwritten
@@ -488,13 +567,19 @@ function showHist(mode) {
 
 function renderHistoric() {
   if(histMode==='posicions'){
-    ['costa','ponent','centre'].forEach(pos=>{
-      const el=document.getElementById('hist-'+pos);
-      const entries=records.filter(r=>r[pos]).slice(0,20);
+    const posFields = [
+      {key:'costa',   id:'hist-costa',   css:'costa'},
+      {key:'costa31', id:'hist-costa31', css:'costa31'},
+      {key:'ponent',  id:'hist-ponent',  css:'ponent'},
+      {key:'centre',  id:'hist-centre',  css:'centre'},
+    ];
+    posFields.forEach(({key,id,css})=>{
+      const el=document.getElementById(id);
+      const entries=records.filter(r=>r[key]).slice(0,20);
       if(!entries.length){el.innerHTML='<p style="font-size:13px;color:var(--text2);">Sense registres encara</p>';return;}
       el.innerHTML=entries.map(r=>`<div class="hist-entry">
         <span class="hist-date">${r.date}</span>
-        <span class="pos-pill pos-${pos}" style="flex:1;">${r[pos]}</span>
+        <span class="pos-pill pos-${css}" style="flex:1;">${r[key]}</span>
         ${r.updated_by?`<span style="font-size:11px;color:var(--text2);">${r.updated_by}</span>`:''}
       </div>`).join('');
     });
@@ -514,12 +599,18 @@ function selectHistWorker(name){
 function renderHistWorker(){
   const el=document.getElementById('hist-worker-detail');
   if(!histWorkerSelected){el.innerHTML='';return;}
-  const entries=records.filter(r=>r.costa===histWorkerSelected||r.ponent===histWorkerSelected||r.centre===histWorkerSelected);
+  const entries=records.filter(r=>r.costa===histWorkerSelected||r.costa31===histWorkerSelected||r.ponent===histWorkerSelected||r.centre===histWorkerSelected);
   if(!entries.length){el.innerHTML='<p style="font-size:13px;color:var(--text2);">Sense registres per a aquest treballador</p>';return;}
   el.innerHTML=entries.map(r=>{
-    const pos=r.costa===histWorkerSelected?'costa':r.ponent===histWorkerSelected?'ponent':'centre';
-    const posName=pos.charAt(0).toUpperCase()+pos.slice(1);
-    return `<div class="hist-entry"><span class="hist-date">${r.date}</span><span class="pos-pill pos-${pos}">${posName}</span></div>`;
+    const w=histWorkerSelected;
+    let pos,css,label;
+    if(r.costa===w&&r.costa31===w){pos='costa';css='costa';label='C30+31';}
+    else if(r.costa===w){pos='costa';css='costa';label='Costa 30';}
+    else if(r.costa31===w){pos='costa31';css='costa31';label='Costa 31';}
+    else if(r.ponent===w&&r.centre===w){pos='ponent';css='ponent';label='Centre+Ponent';}
+    else if(r.ponent===w){pos='ponent';css='ponent';label='Ponent';}
+    else{pos='centre';css='centre';label='Centre';}
+    return `<div class="hist-entry"><span class="hist-date">${r.date}</span><span class="pos-pill pos-${css}">${label}</span></div>`;
   }).join('');
 }
 
